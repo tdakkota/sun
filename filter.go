@@ -9,7 +9,6 @@ import (
 type filterFunc = func(x starlark.Value) (starlark.Value, error)
 
 type filterIter struct {
-	thread   *starlark.Thread
 	function filterFunc
 	iterator starlark.Iterator
 }
@@ -38,10 +37,9 @@ func (f filterIter) Done() {
 }
 
 type filterObject struct {
-	thread   *starlark.Thread
-	function filterFunc
-	iterable starlark.Iterable
-	iterator starlark.Iterator
+	function       filterFunc
+	functionFreeze starlark.Value
+	iterable       starlark.Iterable
 }
 
 func (f filterObject) String() string {
@@ -53,6 +51,7 @@ func (f filterObject) Type() string {
 }
 
 func (f filterObject) Freeze() {
+	f.functionFreeze.Freeze()
 	f.iterable.Freeze()
 }
 
@@ -66,9 +65,8 @@ func (f filterObject) Hash() (uint32, error) {
 
 func (f filterObject) Iterate() starlark.Iterator {
 	return filterIter{
-		thread:   f.thread,
 		function: f.function,
-		iterator: f.iterator,
+		iterator: f.iterable.Iterate(),
 	}
 }
 
@@ -105,9 +103,8 @@ func filter(
 	}
 
 	return &filterObject{
-		thread:   thread,
-		function: function,
-		iterable: iterable,
-		iterator: iterable.Iterate(),
+		function:       function,
+		functionFreeze: args[0],
+		iterable:       iterable,
 	}, nil
 }

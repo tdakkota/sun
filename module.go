@@ -9,6 +9,7 @@ import (
 var Module = &starlarkstruct.Module{
 	Name: "builtins",
 	Members: starlark.StringDict{
+		"map":      starlark.NewBuiltin("map", map_),
 		"filter":   starlark.NewBuiltin("filter", filter),
 		"callable": starlark.NewBuiltin("callable", callable),
 	},

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"go.starlark.net/starlark"
-	"go.starlark.net/starlarktest"
 )
 
 // load implements the 'load' operation as used in the evaluator tests.
@@ -17,11 +16,12 @@ func load(thread *starlark.Thread, module string) (starlark.StringDict, error) {
 	return nil, fmt.Errorf("load not implemented")
 }
 
-func runTestData(t *testing.T, name string, predeclared starlark.StringDict) {
+func runTestData(t *testing.T, name string) {
 	thread := &starlark.Thread{Load: load}
-	starlarktest.SetReporter(thread, t)
+	SetReporter(thread, t)
+
 	filename := filepath.Join("testdata", name)
-	if _, err := starlark.ExecFile(thread, filename, nil, predeclared); err != nil {
+	if _, err := starlark.ExecFile(thread, filename, nil, Module.Members); err != nil {
 		if err, ok := err.(*starlark.EvalError); ok {
 			t.Fatal(err.Backtrace())
 		}
