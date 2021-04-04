@@ -12,7 +12,7 @@ import (
 // load implements the 'load' operation as used in the evaluator tests.
 func load(thread *starlark.Thread, module string) (starlark.StringDict, error) {
 	if module == "assert.star" {
-		return starlarktest.LoadAssertModule()
+		return LoadAssertModule()
 	}
 	return nil, fmt.Errorf("load not implemented")
 }
