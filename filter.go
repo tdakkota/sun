@@ -45,7 +45,7 @@ type filterObject struct {
 }
 
 func (f filterObject) String() string {
-	return fmt.Sprintf("<filter object>")
+	return "<filter object>"
 }
 
 func (f filterObject) Type() string {
