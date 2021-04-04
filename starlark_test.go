@@ -26,7 +26,7 @@ import (
 	"go.starlark.net/starlarkstruct"
 )
 
-//go:embed builtin/assert.star
+//go:embed assert/assert.star
 var assertFile string
 
 const localKey = "Reporter"
