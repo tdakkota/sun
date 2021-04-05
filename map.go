@@ -73,6 +73,8 @@ func (f mapObject) Iterate() starlark.Iterator {
 	for i := range iterators {
 		iterators[i] = f.iterables[i].Iterate()
 	}
+
+	// TODO(tdakkota): specialize iterator if there is only one iterable.
 	return &mapIter{
 		thread:    f.thread,
 		function:  f.function,

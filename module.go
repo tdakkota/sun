@@ -10,6 +10,7 @@ var Module = &starlarkstruct.Module{
 	Name: "builtins",
 	Members: starlark.StringDict{
 		"map":      starlark.NewBuiltin("map", map_),
+		"next":     starlark.NewBuiltin("next", next),
 		"filter":   starlark.NewBuiltin("filter", filter),
 		"callable": starlark.NewBuiltin("callable", callable),
 	},
