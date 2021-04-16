@@ -13,5 +13,8 @@ var Module = &starlarkstruct.Module{
 		"next":     starlark.NewBuiltin("next", next),
 		"filter":   starlark.NewBuiltin("filter", filter),
 		"callable": starlark.NewBuiltin("callable", callable),
+		"hex":      starlark.NewBuiltin("hex", hex),
+		"oct":      starlark.NewBuiltin("oct", oct),
+		"bin":      starlark.NewBuiltin("bin", bin),
 	},
 }
