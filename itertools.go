@@ -4,15 +4,7 @@ import (
 	"fmt"
 
 	"go.starlark.net/starlark"
-	"go.starlark.net/starlarkstruct"
 )
-
-var ItertoolsModule = &starlarkstruct.Module{
-	Name: "itertools",
-	Members: starlark.StringDict{
-		"count": starlark.NewBuiltin("itertools.count", count_),
-	},
-}
 
 type countObject struct {
 	cnt    int
