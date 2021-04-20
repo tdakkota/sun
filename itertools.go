@@ -14,7 +14,6 @@ var ItertoolsModule = &starlarkstruct.Module{
 	},
 }
 
-// countObject as starlark.Value interface
 type countObject struct {
 	cnt    int
 	step   int
@@ -55,7 +54,10 @@ func (co *countObject) Hash() (uint32, error) {
 	return uint32(10), nil
 }
 
-// countIter as starlark.Iterator interface
+func (co *countObject) Iterate() starlark.Iterator {
+	return &countIter{co: co}
+}
+
 type countIter struct {
 	co *countObject
 }
@@ -70,11 +72,6 @@ func (c *countIter) Next(p *starlark.Value) bool {
 }
 
 func (c *countIter) Done() {}
-
-// Make countObject an Iterable
-func (co *countObject) Iterate() starlark.Iterator {
-	return &countIter{co: co}
-}
 
 func count_(
 	thread *starlark.Thread,
