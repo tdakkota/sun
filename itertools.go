@@ -97,7 +97,7 @@ func count_(
 		)
 	}
 
-	co_ := &countObject{}
+	var co_ *countObject
 	switch nargs := len(args); {
 	case nargs == 0:
 		co_ = newCountObject(0, 1)
