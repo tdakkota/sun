@@ -88,8 +88,8 @@ func count_(
 		"count", args, kwargs, 0, &start, &step,
 	); err != nil {
 		return nil, fmt.Errorf(
-			`%w; Got %v but expected NoneType or valid
-	integer values for start and step, such as (0, 1).`, err, args,
+			"Got %v but expected NoneType or valid integer values for "+
+				"start and step, such as (0, 1).", args.String(),
 		)
 	}
 

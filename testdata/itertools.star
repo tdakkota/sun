@@ -29,5 +29,19 @@ def test_count():
     assert.eq(str(c2), "count(11, 3)")
     assert.eq(next(c2), 11)
 
+    # Fails
+    z = ("a", "b")
+    assert.fails(
+        lambda: count("a", "b"),
+        # fails uses match under the hood, which will use
+        # regexp.MatchString, so need to use raw pattern
+        # that MatchString would eaccept.
+        r'Got \(\"a\", \"b\"\)',
+    )
+    assert.fails(
+        lambda: count(1, 2, 3),
+        r'Got \(1, 2, 3\)'
+    )
+
 
 test_count()
