@@ -80,16 +80,12 @@ func count_(
 	kwargs []starlark.Tuple,
 ) (starlark.Value, error) {
 	var (
-		stateValue int
-		stepValue  int
+		start int
+		step  int
 	)
 
-	// If length of args is 0, then use `itertools.count()`s default
-	// values.
-	// If length of args is 2, use said args.
-	// Otherwise, return an error.
 	if err := starlark.UnpackPositionalArgs(
-		"count", args, kwargs, 0, &stateValue, &stepValue,
+		"count", args, kwargs, 0, &start, &step,
 	); err != nil {
 		return nil, fmt.Errorf(
 			`Got %v but expected NoneType or valid
@@ -97,12 +93,23 @@ func count_(
 		)
 	}
 
+	const (
+		defaultStart = 0
+		defaultStep  = 1
+	)
+	// The rules for populating the count object based on the number
+	// of args passed is as follows:
+	// 	0 args -> default values for start and step
+	// 	1 args -> arg defines start, default for step
+	// 	2 args -> both start and step are defined by args
 	var co_ *countObject
 	switch nargs := len(args); {
 	case nargs == 0:
-		co_ = newCountObject(0, 1)
+		co_ = newCountObject(defaultStart, defaultStep)
+	case nargs == 1:
+		co_ = newCountObject(start, defaultStep)
 	default: // nargs == 2
-		co_ = newCountObject(stateValue, stepValue)
+		co_ = newCountObject(start, step)
 	}
 
 	return co_, nil
