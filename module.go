@@ -18,3 +18,11 @@ var Module = &starlarkstruct.Module{
 		"bin":      starlark.NewBuiltin("bin", bin),
 	},
 }
+
+// Module itertools is a Starlark module of Python's itertools module.
+var ItertoolsModule = &starlarkstruct.Module{
+	Name: "itertools",
+	Members: starlark.StringDict{
+		"count": starlark.NewBuiltin("itertools.count", count_),
+	},
+}
