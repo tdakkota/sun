@@ -35,7 +35,7 @@ def test_count():
         lambda: count("a", "b"),
         # fails uses match under the hood, which will use
         # regexp.MatchString, so need to use raw pattern
-        # that MatchString would eaccept.
+        # that MatchString would accept.
         r'Got \(\"a\", \"b\"\)',
     )
     assert.fails(
