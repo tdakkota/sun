@@ -8,6 +8,9 @@ import (
 
 // Type that attempts to allow operations between numerics,
 // i.e. float and int.
+// The relationship between starlark.Int and starlark.Float
+// in floatOrInt is an XOR one. That is, if f_ points to a
+// starlark.Float then i_ must be a nil pointer and vice-versa.
 type floatOrInt struct {
 	f_ *starlark.Float
 	i_ *starlark.Int
@@ -35,6 +38,14 @@ func (p *floatOrInt) Unpack(v starlark.Value) error {
 	return fmt.Errorf("got %s, want float or int", v.Type())
 }
 
+// Adding between what may be a float or an int with what also
+// may be a float or an int.
+// Determining which is which is done by checking whether floatOrInt's
+// starlark.Int or starlark.Float pointers are nil.
+// This makes assigning to floatOrInt's values dangerous: if int is
+// checked first and is not nil but the value was supposed to reflect
+// a float, i.e. float is also not nil, then there will probably be an
+// error downstream.
 func (fi *floatOrInt) add(n floatOrInt) error {
 	switch {
 	// fi is int; n is int
@@ -46,13 +57,15 @@ func (fi *floatOrInt) add(n floatOrInt) error {
 	case fi.i_ != nil && n.f_ != nil:
 		x := starlark.Float(float64(fi.i_.Float()) + float64(*n.f_))
 		fi.f_ = &x
+		// Note that care must be taken to erase the underlying
+		// starlark.Int value of the receiver since it now represents
+		// a starlark.Float
 		fi.i_ = nil
 		return nil
 	// fi is float; n is int
 	case fi.f_ != nil && n.i_ != nil:
 		x := starlark.Float(float64(*fi.f_) + float64(n.i_.Float()))
 		fi.f_ = &x
-		fi.i_ = nil
 		return nil
 	// fi is float; n is float
 	case fi.f_ != nil && n.f_ != nil:
