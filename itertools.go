@@ -95,7 +95,9 @@ func (fi *floatOrInt) eq(v interface{}) bool {
 			return false
 		}
 		var x int
-		starlark.AsInt(*fi.i_, &x)
+		if e := starlark.AsInt(*fi.i_, &x); e != nil {
+			panic(e)
+		}
 		return x == v
 	}
 
@@ -156,7 +158,9 @@ func (c *countIter) Next(p *starlark.Value) bool {
 		*p = c.co.cnt.f_
 	}
 
-	c.co.cnt.add(c.co.step)
+	if e := c.co.cnt.add(c.co.step); e != nil {
+		panic(e)
+	}
 
 	return true
 }
