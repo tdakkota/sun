@@ -38,26 +38,30 @@ func (p *floatOrInt) Unpack(v starlark.Value) error {
 
 func (fi *floatOrInt) add(n floatOrInt) error {
 	switch {
+	// fi is int; n is int
 	case fi.i_ != nil && n.i_ != nil:
 		x := fi.i_.Add(*n.i_)
 		fi.i_ = &x
 		return nil
+	// fi is int; n is float
 	case fi.i_ != nil && n.f_ != nil:
 		x := starlark.Float(float64(fi.i_.Float()) + float64(*n.f_))
 		fi.f_ = &x
 		fi.i_ = nil
 		return nil
+	// fi is float; n is int
 	case fi.f_ != nil && n.i_ != nil:
 		x := starlark.Float(float64(*fi.f_) + float64(n.i_.Float()))
 		fi.f_ = &x
 		fi.i_ = nil
 		return nil
+	// fi is float; n is float
 	case fi.f_ != nil && n.f_ != nil:
 		x := starlark.Float(float64(*fi.f_) + float64(*n.f_))
 		fi.f_ = &x
 		return nil
 	}
-	return fmt.Errorf("float to int addition not possible")
+	return fmt.Errorf("error with addition: types are not int, float combos")
 }
 
 func (fi floatOrInt) string() string {
