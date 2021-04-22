@@ -15,7 +15,6 @@ type floatOrInt struct {
 
 // Unpacker for float or int type. This allows int types and float
 // types to interact with one another, e.g. count(0, 0.1).
-// type floatOrInt float6
 func (p *floatOrInt) Unpack(v starlark.Value) error {
 	errorMsg := "floatOrInt must have default initialization"
 
