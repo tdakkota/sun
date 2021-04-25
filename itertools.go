@@ -92,15 +92,8 @@ func (co countObject) String() string {
 	// step when it is an integer equal to 1 (default step value).
 	step, ok := co.step.value.(starlark.Int)
 	if ok {
-		var x int
-		if err := starlark.AsInt(
-			step,
-			&x,
-		); err != nil {
-			panic(err)
-		}
-		if x == 1 {
-			return fmt.Sprintf("count(%v)", co.cnt.String())
+		if x, ok := step.Int64(); ok && x == 1 {
+		         return "count(1)"
 		}
 	}
 
