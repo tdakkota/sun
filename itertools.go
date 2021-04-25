@@ -53,7 +53,7 @@ func (f *floatOrInt) add(n floatOrInt) error {
 		}
 	}
 
-	return fmt.Errorf("cannot compute")
+	return fmt.Errorf("error with addition: types are not int, float combos")
 }
 
 func (f *floatOrInt) String() string {
