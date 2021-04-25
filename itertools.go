@@ -6,133 +6,105 @@ import (
 	"go.starlark.net/starlark"
 )
 
-// Type that attempts to allow operations between numerics,
-// i.e. float and int.
-// The relationship between starlark.Int and starlark.Float
-// in floatOrInt is an XOR one. That is, if f_ points to a
-// starlark.Float then i_ must be a nil pointer and vice-versa.
+// float or int type to allow mixed inputs.
 type floatOrInt struct {
-	f_ *starlark.Float
-	i_ *starlark.Int
+	value starlark.Value
 }
 
-// Unpacker for float or int type. This allows int types and float
-// types to interact with one another, e.g. count(0, 0.1).
+// Unpacker for floatOrInt.
 func (p *floatOrInt) Unpack(v starlark.Value) error {
-	errorMsg := "floatOrInt must have default initialization"
-
 	switch v := v.(type) {
 	case starlark.Int:
-		if p.f_ != nil {
-			return fmt.Errorf(errorMsg)
-		}
-		p.i_ = &v
+		p.value = v
 		return nil
 	case starlark.Float:
-		if p.i_ != nil {
-			return fmt.Errorf(errorMsg)
-		}
-		p.f_ = &v
+		p.value = v
 		return nil
 	}
 	return fmt.Errorf("got %s, want float or int", v.Type())
 }
 
-// Adding between what may be a float or an int with what also
-// may be a float or an int.
-// Determining which is which is done by checking whether floatOrInt's
-// starlark.Int or starlark.Float pointers are nil.
-// This makes assigning to floatOrInt's values dangerous: if int is
-// checked first and is not nil but the value was supposed to reflect
-// a float, i.e. float is also not nil, then there will probably be an
-// error downstream.
-func (fi *floatOrInt) add(n floatOrInt) error {
-	switch {
-	// fi is int; n is int
-	case fi.i_ != nil && n.i_ != nil:
-		x := fi.i_.Add(*n.i_)
-		fi.i_ = &x
-		return nil
-	// fi is int; n is float
-	case fi.i_ != nil && n.f_ != nil:
-		x := starlark.Float(float64(fi.i_.Float()) + float64(*n.f_))
-		fi.f_ = &x
-		// Note that care must be taken to erase the underlying
-		// starlark.Int value of the receiver since it now represents
-		// a starlark.Float
-		fi.i_ = nil
-		return nil
-	// fi is float; n is int
-	case fi.f_ != nil && n.i_ != nil:
-		x := starlark.Float(float64(*fi.f_) + float64(n.i_.Float()))
-		fi.f_ = &x
-		return nil
-	// fi is float; n is float
-	case fi.f_ != nil && n.f_ != nil:
-		x := starlark.Float(float64(*fi.f_) + float64(*n.f_))
-		fi.f_ = &x
-		return nil
-	}
-	return fmt.Errorf("error with addition: types are not int, float combos")
-}
-
-func (fi floatOrInt) string() string {
-	switch {
-	case fi.i_ != nil:
-		return fi.i_.String()
-	case fi.f_ != nil:
-		return fi.f_.String()
-	default:
-		// This block should not be reached.
-		// starlark's String() method is being replicated
-		// so an error is not raised.
-		return ""
-	}
-}
-
-// Equality operator between floatOrInt and starlark's Int, Float
-// and Golang's int.
-func (fi *floatOrInt) eq(v interface{}) bool {
-	switch v := v.(type) {
+func (f *floatOrInt) add(n floatOrInt) error {
+	switch _f := f.value.(type) {
 	case starlark.Int:
-		if fi.i_ != nil && *fi.i_ == v {
-			return true
-		} else {
-			return false
+		switch _n := n.value.(type) {
+		// int + int
+		case starlark.Int:
+			f.value = _f.Add(_n)
+			return nil
+		// int + float
+		case starlark.Float:
+			_n += _f.Float()
+			f.value = _n
+			return nil
 		}
 	case starlark.Float:
-		if fi.f_ != nil && *fi.f_ == v {
-			return true
-		} else {
-			return false
+		switch _n := n.value.(type) {
+		// float + int
+		case starlark.Int:
+			_f += _n.Float()
+			f.value = _f
+			return nil
+		// float + float
+		case starlark.Float:
+			_f += _n
+			f.value = _f
+			return nil
 		}
-	case int:
-		if fi.i_ == nil {
-			return false
-		}
-		var x int
-		if e := starlark.AsInt(*fi.i_, &x); e != nil {
-			panic(e)
-		}
-		return x == v
 	}
 
-	return false
+	return fmt.Errorf("cannot compute")
 }
 
+func (f *floatOrInt) String() string {
+	return f.value.String()
+}
+
+// Iterator implementation for countObject.
+type countIter struct {
+	co *countObject
+}
+
+func (c *countIter) Next(p *starlark.Value) bool {
+	if c.co.frozen {
+		return false
+	}
+
+	*p = c.co.cnt.value
+
+	if e := c.co.cnt.add(c.co.step); e != nil {
+		panic(e)
+	}
+
+	return true
+}
+
+func (c *countIter) Done() {}
+
+// countObject implementation as a starlark.Value.
 type countObject struct {
-	cnt    floatOrInt
-	step   floatOrInt
-	frozen bool
+	cnt, step floatOrInt
+	frozen    bool
 }
 
-func (co *countObject) String() string {
+func (co countObject) String() string {
 	// As with the cpython implementation, we don't display
 	// step when it is an integer equal to 1 (default step value).
-	if co.step.eq(1) {
-		return fmt.Sprintf("count(%v)", co.cnt.string())
+	step, ok := co.step.value.(starlark.Int)
+	if ok {
+		var x int
+		if err := starlark.AsInt(
+			step,
+			&x,
+		); err != nil {
+			panic(err)
+		}
+		if x == 1 {
+			return fmt.Sprintf("count(%v)", co.cnt.String())
+		}
 	}
-	return fmt.Sprintf("count(%v, %v)", co.cnt.string(), co.step.string())
+
+	return fmt.Sprintf("count(%v, %v)", co.cnt.String(), co.step.String())
 }
 
 func (co *countObject) Type() string {
@@ -158,31 +130,6 @@ func (co *countObject) Iterate() starlark.Iterator {
 	return &countIter{co: co}
 }
 
-type countIter struct {
-	co *countObject
-}
-
-func (c *countIter) Next(p *starlark.Value) bool {
-	if c.co.frozen {
-		return false
-	}
-
-	switch {
-	case c.co.cnt.i_ != nil:
-		*p = c.co.cnt.i_
-	case c.co.cnt.f_ != nil:
-		*p = c.co.cnt.f_
-	}
-
-	if e := c.co.cnt.add(c.co.step); e != nil {
-		panic(e)
-	}
-
-	return true
-}
-
-func (c *countIter) Done() {}
-
 func count_(
 	thread *starlark.Thread,
 	_ *starlark.Builtin,
@@ -190,10 +137,10 @@ func count_(
 	kwargs []starlark.Tuple,
 ) (starlark.Value, error) {
 	var (
-		defaultStart            = starlark.MakeInt(0)
-		defaultStep             = starlark.MakeInt(1)
-		start        floatOrInt = floatOrInt{}
-		step         floatOrInt = floatOrInt{}
+		defaultStart = starlark.MakeInt(0)
+		defaultStep  = starlark.MakeInt(1)
+		start        floatOrInt
+		step         floatOrInt
 	)
 
 	if err := starlark.UnpackPositionalArgs(
@@ -206,11 +153,11 @@ func count_(
 	}
 
 	// Check if start or step require default values.
-	if start.f_ == nil && start.i_ == nil {
-		start.i_ = &defaultStart
+	if start.value == nil {
+		start.value = defaultStart
 	}
-	if step.f_ == nil && step.i_ == nil {
-		step.i_ = &defaultStep
+	if step.value == nil {
+		step.value = defaultStep
 	}
 
 	return &countObject{cnt: start, step: step}, nil
