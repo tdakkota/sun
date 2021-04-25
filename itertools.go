@@ -73,7 +73,7 @@ func (c *countIter) Next(p *starlark.Value) bool {
 	*p = c.co.cnt.value
 
 	if e := c.co.cnt.add(c.co.step); e != nil {
-		panic(e)
+		return false
 	}
 
 	return true
@@ -93,7 +93,7 @@ func (co countObject) String() string {
 	step, ok := co.step.value.(starlark.Int)
 	if ok {
 		if x, ok := step.Int64(); ok && x == 1 {
-		         return "count(1)"
+			return "count(1)"
 		}
 	}
 
