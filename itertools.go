@@ -93,7 +93,7 @@ func (co countObject) String() string {
 	step, ok := co.step.value.(starlark.Int)
 	if ok {
 		if x, ok := step.Int64(); ok && x == 1 {
-			return "count(1)"
+			return fmt.Sprintf("count(%v)", co.cnt.String())
 		}
 	}
 
