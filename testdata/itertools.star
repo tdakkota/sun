@@ -3,6 +3,17 @@ load("assert.star", "assert")
 
 def test_count():
 
+    ### Hash ###
+    assert.true(count(0) != count(0))
+    assert.true(count(5, 0.6) != count(5, 0.6))
+    h_c0 = count(1, 2)
+    assert.true(h_c0 == h_c0)
+    # h_co is hashable, so if it can be a key in a dict
+    # then this test passes.
+    dict_h_c0 = {h_c0: True}
+    assert.contains(dict_h_c0, h_c0)
+
+    ### Str and next ###
     # No args — defaults to 0, 1.
     c0 = count()
     # *step* is omitted when 1. This is equivalent to count(start).
@@ -75,7 +86,7 @@ def test_count():
     assert.eq(str(c7), "count(6.0, 0.5)")
     assert.eq(next(c7), 6.0)
 
-    # NaNs
+    ### NaNs ###
     c8 = count(0, float('nan'))
     assert.eq(str(c8), "count(0, %s)" % (float('nan')))
     assert.eq(next(c8), 0)
@@ -118,7 +129,7 @@ def test_count():
     assert.eq(str(c13), "count(%s, 2)" % (float('-inf')))
     assert.eq(next(c13), float('-inf'))
 
-    # Fails
+    ### Fails ###
     # Non-numeric arg fails.
     assert.fails(
         lambda: count("a", "b"),
