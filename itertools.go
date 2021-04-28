@@ -3,6 +3,7 @@ package sun
 import (
 	"fmt"
 
+	"github.com/google/uuid"
 	"go.starlark.net/starlark"
 )
 
@@ -85,6 +86,11 @@ func (c *countIter) Done() {}
 type countObject struct {
 	cnt, step floatOrInt
 	frozen    bool
+	id        uint32
+}
+
+func newCountObject(start, step floatOrInt) *countObject {
+	return &countObject{cnt: start, step: step, id: uuid.New().ID()}
 }
 
 func (co countObject) String() string {
@@ -115,8 +121,11 @@ func (co *countObject) Truth() starlark.Bool {
 }
 
 func (co *countObject) Hash() (uint32, error) {
-	// TODO(algebra8): Implement inherited type object hash.
-	return uint32(10), nil
+	// Cpython's count object inherits tp_hash from object,
+	// where object's hash is calculated by:
+	// 	id() >> 4
+	// Here, a UUID.ID() should suffice.
+	return co.id, nil
 }
 
 func (co *countObject) Iterate() starlark.Iterator {
@@ -153,5 +162,5 @@ func count_(
 		step.value = defaultStep
 	}
 
-	return &countObject{cnt: start, step: step}, nil
+	return newCountObject(start, step), nil
 }
