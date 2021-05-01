@@ -147,4 +147,49 @@ def test_count():
     )
 
 
+def test_islice():
+
+    # Test empty iterable
+    assert.eq(
+        list(islice([], 1)),
+        []
+    )
+
+    # Test with count iterable
+    assert.eq(
+        list(islice(count(0, 5), 5)),
+        [0, 5, 10, 15, 20]
+    )
+
+    assert.eq(
+        list(islice(count(0, 5), 1, 5)),
+        [5, 10, 15, 20]
+    )
+
+    assert.eq(
+        list(islice(count(0, 5), 1, 5, 3)),
+        [5, 20]
+    )
+
+    # Test with other iterable
+    assert.eq(
+        list(islice({'a': 0, 'b': 0, 'c': 0}, 3)),
+        ['a', 'b', 'c']
+    )
+
+    # Check immutability
+    a = [1, 2, 3]
+    s = islice(a, 3)
+    a = []
+    assert.eq(list(s), [1, 2, 3])
+
+    # Check hashibility
+    s0 = islice([1, 2, 3], 1)
+    s1 = islice([1, 2, 3], 1)
+    assert.true(s0 != s1)
+    assert.true(s0 == s0)
+    assert.true(s1 == s1)
+
+
 test_count()
+test_islice()
