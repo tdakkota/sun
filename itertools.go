@@ -7,6 +7,8 @@ import (
 	"go.starlark.net/starlark"
 )
 
+/* count object ************************************************************/
+
 // float or int type to allow mixed inputs.
 type floatOrInt struct {
 	value starlark.Value
@@ -163,4 +165,179 @@ func count_(
 	}
 
 	return newCountObject(start, step), nil
+}
+
+/* islice object ************************************************************/
+
+// isliceObject as a starlark.Value
+type isliceObject struct {
+	// Store the iterator directly on the object; see
+	// https://github.com/tdakkota/sun/issues/14
+	iterator starlark.Iterator
+	next     int
+	stop     int
+	step     int
+	id       uint32
+	// TODO(algebra8): Need itercount?
+}
+
+func (is isliceObject) String() string {
+	return "<itertools.islice object>"
+}
+
+func (is isliceObject) Type() string {
+	return "itertools.islice"
+}
+
+func (is isliceObject) Freeze() {
+	// Python's itertools.islice seems to make a copy of any
+	// underlying iterable, e.g.:
+	// 	>>> a = [1, 2, 3]
+	// 	>>> s = itertools.islice(a, 3)
+	// 	>>> a = []
+	// 	>>> list(s)
+	// 	[1, 2, 3]
+	// And since the islice object itself is immutable and hashable,
+	// we consider the entire object immutable.
+}
+
+func (is isliceObject) Truth() starlark.Bool {
+	return starlark.True
+}
+
+func (is isliceObject) Hash() (uint32, error) {
+	return is.id, nil
+}
+
+// Iterator for islice object
+type isliceIter struct {
+	islice *isliceObject
+	cnt    int
+}
+
+func (it *isliceIter) Next(p *starlark.Value) bool {
+	var (
+		x       starlark.Value
+		oldNext int
+	)
+
+	stop := it.islice.stop
+
+	// Get iterator up to the "next" iteration.
+	for it.cnt < it.islice.next {
+		if !it.islice.iterator.Next(&x) {
+			return false
+		}
+		it.cnt += 1
+	}
+
+	if it.cnt >= stop {
+		return false
+	}
+
+	if !it.islice.iterator.Next(&x) {
+		return false
+	}
+
+	*p = x
+
+	it.cnt += 1
+	oldNext = it.islice.next
+	it.islice.next += it.islice.step
+	if it.islice.next < oldNext || it.islice.next > stop {
+		it.islice.next = it.islice.stop
+	}
+
+	return true
+}
+
+func (it *isliceIter) Done() {
+	it.islice.iterator.Done()
+}
+
+// isliceObject as a starlark.Iteratable
+func (is isliceObject) Iterate() starlark.Iterator {
+	return &isliceIter{islice: &is}
+}
+
+/*
+islice(iterable: Iterable[_T], stop: Optional[int]) -> Iterator[_T]
+islice(iterable, stop) --> islice object
+islice(iterable, start, stop[, step]) --> islice object
+
+Return an iterator whose next() method returns selected values from an
+iterable.  If start is specified, will skip all preceding elements;
+otherwise, start defaults to zero.  Step defaults to one.  If
+specified as another value, step determines how many values are
+skipped between successive calls.  Works like a slice() on a list
+but returns an iterator.
+*/
+
+const (
+	defaultSliceStart = 0
+	defaultSliceStep  = 1
+
+	// Python implementation defaults to sys.maxsize
+	defaultSliceStop = ^uint(0)
+)
+
+func islice(
+	thread *starlark.Thread,
+	_ *starlark.Builtin,
+	args starlark.Tuple,
+	kwargs []starlark.Tuple,
+) (starlark.Value, error) {
+
+	var (
+		iterable starlark.Iterable
+
+		// Positional args from islice call
+		a int
+		b starlark.Value
+		c starlark.Value
+
+		// islice values
+		start int
+		stop  int
+		step  int
+	)
+
+	if err := starlark.UnpackPositionalArgs(
+		"islice", args, kwargs, 2, &iterable,
+		&a, &b, &c,
+	); err != nil {
+		return nil, err
+	}
+
+	// islice slices the positional args according to the slice() function,
+	// so there are three cases that have to be considered:
+	// 1: only one argument is provided
+	// 		- then that arg defines stop
+	// 2: two arguments are provided
+	// 		- they define start and stop, respectively
+	// 3: three arguments are provided
+	// 		- they define start, stop, and step respectively
+	switch {
+	case b == nil && c == nil:
+		stop = a
+		start = defaultSliceStart
+		step = defaultSliceStep
+	case b != nil && c == nil:
+		start = a
+		starlark.AsInt(b, &stop)
+		step = defaultSliceStep
+	case b != nil && c != nil:
+		start = a
+		starlark.AsInt(b, &stop)
+		starlark.AsInt(c, &step)
+	}
+
+	return isliceObject{
+		// Don't need to call iterator.Done() since that
+		// is handled in isliceIter.Done().
+		iterator: iterable.Iterate(),
+		next:     start,
+		stop:     stop,
+		step:     step,
+	}, nil
 }
