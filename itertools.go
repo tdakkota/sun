@@ -316,17 +316,25 @@ func islice(
 
 	if len(args) > 2 { // itertools.islice(iterable, start, stop[, step])
 		if a != starlark.None {
-			starlark.AsInt(a, &start)
+			if err := starlark.AsInt(a, &start); err != nil {
+				return nil, err
+			}
 		}
 		if b != starlark.None {
-			starlark.AsInt(b, &stop)
+			if err := starlark.AsInt(b, &stop); err != nil {
+				return nil, err
+			}
 		}
 		if c != starlark.None {
-			starlark.AsInt(c, &step)
+			if err := starlark.AsInt(c, &step); err != nil {
+				return nil, err
+			}
 		}
 	} else { // 2 args; itertools.islice(iterable, stop)
 		if a != starlark.None {
-			starlark.AsInt(a, &stop)
+			if err := starlark.AsInt(a, &stop); err != nil {
+				return nil, err
+			}
 		}
 	}
 
