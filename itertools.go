@@ -260,26 +260,18 @@ func (is isliceObject) Iterate() starlark.Iterator {
 	return &isliceIter{islice: &is}
 }
 
-/*
-islice(iterable: Iterable[_T], stop: Optional[int]) -> Iterator[_T]
-islice(iterable, stop) --> islice object
-islice(iterable, start, stop[, step]) --> islice object
-
-Return an iterator whose next() method returns selected values from an
-iterable.  If start is specified, will skip all preceding elements;
-otherwise, start defaults to zero.  Step defaults to one.  If
-specified as another value, step determines how many values are
-skipped between successive calls.  Works like a slice() on a list
-but returns an iterator.
-*/
-
-const (
-	defaultSliceStart = 0
-	defaultSliceStep  = 1
-
-	// Python implementation defaults to sys.maxsize
-	defaultSliceStop = ^uint(0)
-)
+func assertPosIntOrNone(vs ...starlark.Value) error {
+	for _, v := range vs {
+		i, ok := v.(starlark.Int)
+		if !ok && v != starlark.None {
+			return fmt.Errorf("expected int or None, got %s\n", v.String())
+		}
+		if ok && i.Sign() == -1 {
+			return fmt.Errorf("expected non-negative values, got %s\n", v.String())
+		}
+	}
+	return nil
+}
 
 func islice(
 	thread *starlark.Thread,
@@ -292,14 +284,14 @@ func islice(
 		iterable starlark.Iterable
 
 		// Positional args from islice call
-		a int
+		a starlark.Value
 		b starlark.Value
 		c starlark.Value
 
 		// islice values
-		start int
-		stop  int
-		step  int
+		start int = 0
+		stop  int = (1 << 63) - 1
+		step  int = 1
 	)
 
 	if err := starlark.UnpackPositionalArgs(
@@ -309,32 +301,36 @@ func islice(
 		return nil, err
 	}
 
-	// islice slices the positional args according to the slice() function,
-	// so there are three cases that have to be considered:
-	// 1: only one argument is provided
-	// 		- then that arg defines stop
-	// 2: two arguments are provided
-	// 		- they define start and stop, respectively
-	// 3: three arguments are provided
-	// 		- they define start, stop, and step respectively
-	switch {
-	case b == nil && c == nil:
-		stop = a
-		start = defaultSliceStart
-		step = defaultSliceStep
-	case b != nil && c == nil:
-		start = a
-		starlark.AsInt(b, &stop)
-		step = defaultSliceStep
-	case b != nil && c != nil:
-		start = a
-		starlark.AsInt(b, &stop)
-		starlark.AsInt(c, &step)
+	if a == nil {
+		a = starlark.None
+	}
+	if b == nil {
+		b = starlark.None
+	}
+	if c == nil {
+		c = starlark.None
+	}
+	if err := assertPosIntOrNone(a, b, c); err != nil {
+		return nil, err
+	}
+
+	if len(args) > 2 { // itertools.islice(iterable, start, stop[, step])
+		if a != starlark.None {
+			starlark.AsInt(a, &start)
+		}
+		if b != starlark.None {
+			starlark.AsInt(b, &stop)
+		}
+		if c != starlark.None {
+			starlark.AsInt(c, &step)
+		}
+	} else { // 2 args; itertools.islice(iterable, stop)
+		if a != starlark.None {
+			starlark.AsInt(a, &stop)
+		}
 	}
 
 	return isliceObject{
-		// Don't need to call iterator.Done() since that
-		// is handled in isliceIter.Done().
 		iterator: iterable.Iterate(),
 		next:     start,
 		stop:     stop,
