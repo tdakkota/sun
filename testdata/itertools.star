@@ -149,32 +149,29 @@ def test_count():
 
 def test_islice():
 
-    # Test empty iterable
     assert.eq(
         list(islice([], 1)),
         []
     )
-
-    # Test with count iterable
     assert.eq(
         list(islice(count(0, 5), 5)),
         [0, 5, 10, 15, 20]
     )
-
     assert.eq(
         list(islice(count(0, 5), 1, 5)),
         [5, 10, 15, 20]
     )
-
     assert.eq(
         list(islice(count(0, 5), 1, 5, 3)),
         [5, 20]
     )
-
-    # Test with other iterable
     assert.eq(
         list(islice({'a': 0, 'b': 0, 'c': 0}, 3)),
         ['a', 'b', 'c']
+    )
+    assert.eq(
+        list(islice([1, 2, 3], None)),
+        [1, 2, 3]
     )
 
     # Check immutability
@@ -189,6 +186,66 @@ def test_islice():
     assert.true(s0 != s1)
     assert.true(s0 == s0)
     assert.true(s1 == s1)
+
+    # Test according to Python docs; specifically testing
+    # slice attr initialization and islice iteration.
+    # See https://docs.python.org/3/library/itertools.html#itertools.islice
+    s2 = islice("ABCDEFG".elems(), 2)
+    assert.eq(
+        "".join(list(s2)),
+        "AB"
+    )
+    s3 = islice("ABCDEFG".elems(), 2, 4)
+    assert.eq(
+        "".join(list(s3)),
+        "CD"
+    )
+    s4 = islice("ABCDEFG".elems(), 2, None)
+    assert.eq(
+        "".join(list(s4)),
+        "CDEFG"
+    )
+    s5 = islice("ABCDEFG".elems(), 0, None, 2)
+    assert.eq(
+        "".join(list(s5)),
+        "ACEG"
+    )
+
+    assert.fails(
+        lambda: islice("asd".elems(), "a"),
+        # fails uses match under the hood, which will use
+        # regexp.MatchString, so need to use raw pattern
+        # that MatchString would accept.
+        r'expected int or None, got "a"',
+    )
+    assert.fails(
+        lambda: islice("asd".elems(), 1, "a"),
+        # fails uses match under the hood, which will use
+        # regexp.MatchString, so need to use raw pattern
+        # that MatchString would accept.
+        r'expected int or None',
+    )
+    assert.fails(
+        lambda: islice("asd".elems(), 1, None, "a"),
+        # fails uses match under the hood, which will use
+        # regexp.MatchString, so need to use raw pattern
+        # that MatchString would accept.
+        r'expected int or None',
+    )
+    assert.fails(
+        lambda: islice("asd".elems(), -1),
+        # fails uses match under the hood, which will use
+        # regexp.MatchString, so need to use raw pattern
+        # that MatchString would accept.
+        r'expected non-negative values',
+    )
+    assert.fails(
+        lambda: islice("asd".elems(), 1, None, -1),
+        # fails uses match under the hood, which will use
+        # regexp.MatchString, so need to use raw pattern
+        # that MatchString would accept.
+        r'expected non-negative values',
+    )
 
 
 test_count()
