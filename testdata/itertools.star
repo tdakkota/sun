@@ -174,12 +174,6 @@ def test_islice():
         [1, 2, 3]
     )
 
-    # Check immutability
-    a = [1, 2, 3]
-    s = islice(a, 3)
-    a = []
-    assert.eq(list(s), [1, 2, 3])
-
     # Check hashibility
     s0 = islice([1, 2, 3], 1)
     s1 = islice([1, 2, 3], 1)
