@@ -190,15 +190,9 @@ func (is isliceObject) Type() string {
 }
 
 func (is isliceObject) Freeze() {
-	// Python's itertools.islice seems to make a copy of any
-	// underlying iterable, e.g.:
-	// 	>>> a = [1, 2, 3]
-	// 	>>> s = itertools.islice(a, 3)
-	// 	>>> a = []
-	// 	>>> list(s)
-	// 	[1, 2, 3]
-	// And since the islice object itself is immutable and hashable,
-	// we consider the entire object immutable.
+	// Since isliceObject does not hold onto the iterable,
+	// the iterable value is not reachable from it so Freeze
+	// doesn't need to do anything.
 }
 
 func (is isliceObject) Truth() starlark.Bool {
