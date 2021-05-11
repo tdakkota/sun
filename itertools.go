@@ -258,7 +258,7 @@ func assertPosIntOrNone(vs ...starlark.Value) error {
 	for _, v := range vs {
 		i, ok := v.(starlark.Int)
 		if !ok && v != starlark.None {
-			return fmt.Errorf("expected int or None, got %s\n", v.String())
+			return fmt.Errorf("expected int or None, got %s\n", v.Type())
 		}
 		if ok && i.Sign() == -1 {
 			return fmt.Errorf("expected non-negative values, got %s\n", v.String())

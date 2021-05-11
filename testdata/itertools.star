@@ -210,7 +210,7 @@ def test_islice():
         # fails uses match under the hood, which will use
         # regexp.MatchString, so need to use raw pattern
         # that MatchString would accept.
-        r'expected int or None, got "a"',
+        r'expected int or None, got string',
     )
     assert.fails(
         lambda: islice("asd".elems(), 1, "a"),
