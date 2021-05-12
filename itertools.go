@@ -7,6 +7,8 @@ import (
 	"go.starlark.net/starlark"
 )
 
+/* count object ************************************************************/
+
 // float or int type to allow mixed inputs.
 type floatOrInt struct {
 	value starlark.Value
@@ -163,4 +165,177 @@ func count_(
 	}
 
 	return newCountObject(start, step), nil
+}
+
+/* islice object ************************************************************/
+
+// isliceObject as a starlark.Value
+type isliceObject struct {
+	// Store the iterator directly on the object; see
+	// https://github.com/tdakkota/sun/issues/14
+	iterator starlark.Iterator
+	next     int
+	stop     int
+	step     int
+	id       uint32
+	// TODO(algebra8): Need itercount?
+}
+
+func (is isliceObject) String() string {
+	return "<itertools.islice object>"
+}
+
+func (is isliceObject) Type() string {
+	return "itertools.islice"
+}
+
+func (is isliceObject) Freeze() {
+	// Since isliceObject does not hold onto the iterable,
+	// the iterable value is not reachable from it so Freeze
+	// doesn't need to do anything.
+}
+
+func (is isliceObject) Truth() starlark.Bool {
+	return starlark.True
+}
+
+func (is isliceObject) Hash() (uint32, error) {
+	return is.id, nil
+}
+
+// Iterator for islice object
+type isliceIter struct {
+	islice *isliceObject
+	cnt    int
+}
+
+func (it *isliceIter) Next(p *starlark.Value) bool {
+	var (
+		x       starlark.Value
+		oldNext int
+	)
+
+	stop := it.islice.stop
+
+	// Get iterator up to the "next" iteration.
+	for it.cnt < it.islice.next {
+		if !it.islice.iterator.Next(&x) {
+			return false
+		}
+		it.cnt += 1
+	}
+
+	if it.cnt >= stop {
+		return false
+	}
+
+	if !it.islice.iterator.Next(&x) {
+		return false
+	}
+
+	*p = x
+
+	it.cnt += 1
+	oldNext = it.islice.next
+	it.islice.next += it.islice.step
+	if it.islice.next < oldNext || it.islice.next > stop {
+		it.islice.next = it.islice.stop
+	}
+
+	return true
+}
+
+func (it *isliceIter) Done() {
+	it.islice.iterator.Done()
+}
+
+// isliceObject as a starlark.Iteratable
+func (is isliceObject) Iterate() starlark.Iterator {
+	return &isliceIter{islice: &is}
+}
+
+func assertPosIntOrNone(vs ...starlark.Value) error {
+	for _, v := range vs {
+		i, ok := v.(starlark.Int)
+		if !ok && v != starlark.None {
+			return fmt.Errorf("expected int or None, got %s\n", v.Type())
+		}
+		if ok && i.Sign() == -1 {
+			return fmt.Errorf("expected non-negative values, got %s\n", v.String())
+		}
+	}
+	return nil
+}
+
+func islice(
+	thread *starlark.Thread,
+	_ *starlark.Builtin,
+	args starlark.Tuple,
+	kwargs []starlark.Tuple,
+) (starlark.Value, error) {
+
+	var (
+		iterable starlark.Iterable
+
+		// Positional args from islice call
+		a starlark.Value
+		b starlark.Value
+		c starlark.Value
+
+		// islice values
+		start int = 0
+		stop  int = (1 << 63) - 1
+		step  int = 1
+	)
+
+	if err := starlark.UnpackPositionalArgs(
+		"islice", args, kwargs, 2, &iterable,
+		&a, &b, &c,
+	); err != nil {
+		return nil, err
+	}
+
+	if a == nil {
+		a = starlark.None
+	}
+	if b == nil {
+		b = starlark.None
+	}
+	if c == nil {
+		c = starlark.None
+	}
+	if err := assertPosIntOrNone(a, b, c); err != nil {
+		return nil, err
+	}
+
+	if len(args) > 2 { // itertools.islice(iterable, start, stop[, step])
+		if a != starlark.None {
+			if err := starlark.AsInt(a, &start); err != nil {
+				return nil, err
+			}
+		}
+		if b != starlark.None {
+			if err := starlark.AsInt(b, &stop); err != nil {
+				return nil, err
+			}
+		}
+		if c != starlark.None {
+			if err := starlark.AsInt(c, &step); err != nil {
+				return nil, err
+			}
+		}
+	} else { // 2 args; itertools.islice(iterable, stop)
+		if a != starlark.None {
+			if err := starlark.AsInt(a, &stop); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return isliceObject{
+		iterator: iterable.Iterate(),
+		next:     start,
+		stop:     stop,
+		step:     step,
+	}, nil
 }

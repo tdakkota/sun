@@ -23,6 +23,7 @@ var Module = &starlarkstruct.Module{
 var ItertoolsModule = &starlarkstruct.Module{
 	Name: "itertools",
 	Members: starlark.StringDict{
-		"count": starlark.NewBuiltin("itertools.count", count_),
+		"count":  starlark.NewBuiltin("itertools.count", count_),
+		"islice": starlark.NewBuiltin("itertools.islice", islice),
 	},
 }
