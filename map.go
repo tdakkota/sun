@@ -2,6 +2,7 @@ package sun
 
 import (
 	"fmt"
+	"runtime"
 
 	"go.starlark.net/starlark"
 )
@@ -43,6 +44,7 @@ type mapObject struct {
 	thread    *starlark.Thread
 	function  starlark.Callable
 	iterables []starlark.Iterable
+	iterators []starlark.Iterator
 }
 
 func (f mapObject) String() string {
@@ -69,17 +71,12 @@ func (f mapObject) Hash() (uint32, error) {
 }
 
 func (f mapObject) Iterate() starlark.Iterator {
-	iterators := make([]starlark.Iterator, len(f.iterables))
-	for i := range iterators {
-		iterators[i] = f.iterables[i].Iterate()
-	}
-
 	// TODO(tdakkota): specialize iterator if there is only one iterable.
 	return &mapIter{
 		thread:    f.thread,
 		function:  f.function,
-		iterators: iterators,
-		buf:       make([]starlark.Value, 0, len(iterators)),
+		iterators: f.iterators,
+		buf:       make([]starlark.Value, 0, len(f.iterators)),
 	}
 }
 
@@ -103,9 +100,23 @@ func map_(
 		return nil, err
 	}
 
-	return &mapObject{
+	iterators := make([]starlark.Iterator, len(iterables))
+	for i := range iterators {
+		iterators[i] = iterables[i].Iterate()
+	}
+
+	obj := &mapObject{
 		thread:    thread,
 		function:  function,
 		iterables: iterables,
-	}, nil
+		iterators: iterators,
+	}
+	// TODO(tdakkota): find better way to release iterators
+	runtime.SetFinalizer(obj, func(m *mapObject) {
+		for _, iterator := range m.iterators {
+			iterator.Done()
+		}
+	})
+
+	return obj, nil
 }

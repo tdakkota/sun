@@ -29,4 +29,15 @@ def test_main():
         [(2,2,2), (3,3,3), (4,4,4), (5,5,5),],
     )
 
+    def f(_a):
+        return _a
+
+    m = map(f, [1, 2, 3])
+    assert.eq(next(m), 1)
+    assert.eq(next(m), 2)
+    assert.eq(next(m), 3)
+    assert.fails(lambda: next(m), "iteration done")
+    m = None
+    assert.gc()
+
 test_main()

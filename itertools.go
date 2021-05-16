@@ -15,13 +15,13 @@ type floatOrInt struct {
 }
 
 // Unpacker for floatOrInt.
-func (p *floatOrInt) Unpack(v starlark.Value) error {
+func (f *floatOrInt) Unpack(v starlark.Value) error {
 	switch v := v.(type) {
 	case starlark.Int:
-		p.value = v
+		f.value = v
 		return nil
 	case starlark.Float:
-		p.value = v
+		f.value = v
 		return nil
 	}
 	return fmt.Errorf("got %s, want float or int", v.Type())

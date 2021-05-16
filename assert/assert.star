@@ -48,4 +48,5 @@ assert = module(
     lt = _lt,
     contains = _contains,
     fails = _fails,
+    gc = _gc,
 )
