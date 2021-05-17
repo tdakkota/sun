@@ -19,6 +19,7 @@ import (
 	_ "embed"
 	"fmt"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -70,11 +71,17 @@ func LoadAssertModule() (starlark.StringDict, error) {
 			"matches": starlark.NewBuiltin("matches", matches),
 			"module":  starlark.NewBuiltin("module", starlarkstruct.MakeModule),
 			"_freeze": starlark.NewBuiltin("freeze", freeze),
+			"_gc":     starlark.NewBuiltin("gc", gc),
 		}
 		thread := new(starlark.Thread)
 		assert, assertErr = starlark.ExecFile(thread, "assert.star", assertFile, predeclared)
 	})
 	return assert, assertErr
+}
+
+func gc(*starlark.Thread, *starlark.Builtin, starlark.Tuple, []starlark.Tuple) (starlark.Value, error) {
+	runtime.GC()
+	return starlark.None, nil
 }
 
 // catch(f) evaluates f() and returns its evaluation error message
