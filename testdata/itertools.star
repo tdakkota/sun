@@ -74,10 +74,6 @@ def test_count():
     assert.eq(str(c6), "count(10.5, 5)")
     assert.eq(next(c6), 10.5)
 
-    # This test may seem similar to c5 but is different because
-    # here step > 1. In the case that 0 < step < 1, fmt.Sprintf,
-    # which is used in String(), will display it as a float but
-    # may display it as an int if the proper flags aren't used.
     c7 = count(5.0, 0.5)
     assert.eq(str(c7), "count(5.0, 0.5)")
     assert.eq(next(c7), 5.0)
@@ -85,6 +81,9 @@ def test_count():
     assert.eq(next(c7), 5.5)
     assert.eq(str(c7), "count(6.0, 0.5)")
     assert.eq(next(c7), 6.0)
+
+    c8 = count(5, 1.0)
+    assert.eq(str(c8), "count(5, 1.0)")
 
     ### NaNs ###
     c8 = count(0, float('nan'))
@@ -132,18 +131,26 @@ def test_count():
     ### Fails ###
     # Non-numeric arg fails.
     assert.fails(
-        lambda: count("a", "b"),
-        # fails uses match under the hood, which will use
-        # regexp.MatchString, so need to use raw pattern
-        # that MatchString would accept.
-        r'Got \(\"a\", \"b\"\)',
+        lambda: count("5", 1),
+        'a number is required',
     )
-
+    assert.fails(
+        lambda: count(5, "1"),
+        'a number is required',
+    )
+    assert.fails(
+        lambda: count(None, 1),
+        'a number is required',
+    )
+    assert.fails(
+        lambda: count(5, None),
+        'a number is required',
+    )
     # Too many arg fails — should be handled by UnpackArgs but
     # check to be exhaustive.
     assert.fails(
         lambda: count(1, 2, 3),
-        r'Got \(1, 2, 3\)'
+        'count: got 3 arguments, want at most 2'
     )
 
 
