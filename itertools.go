@@ -5,63 +5,17 @@ import (
 
 	"github.com/google/uuid"
 	"go.starlark.net/starlark"
+	"go.starlark.net/syntax"
 )
 
+// A note on Hash functions:
+// In the CPython implementation of itertools, some itertools methods, such as
+// count and islice, inherit tp_hash from object where object's hash is
+// calculated by id() >> 4 and where id(), in some Python implementations,
+// returns the memory address of the underlying object.
+// In this itertools module, a UUID.ID() is used.
+
 /* count object ************************************************************/
-
-// float or int type to allow mixed inputs.
-type floatOrInt struct {
-	value starlark.Value
-}
-
-// Unpacker for floatOrInt.
-func (f *floatOrInt) Unpack(v starlark.Value) error {
-	switch v := v.(type) {
-	case starlark.Int:
-		f.value = v
-		return nil
-	case starlark.Float:
-		f.value = v
-		return nil
-	}
-	return fmt.Errorf("got %s, want float or int", v.Type())
-}
-
-func (f *floatOrInt) add(n floatOrInt) error {
-	switch _f := f.value.(type) {
-	case starlark.Int:
-		switch _n := n.value.(type) {
-		// int + int
-		case starlark.Int:
-			f.value = _f.Add(_n)
-			return nil
-		// int + float
-		case starlark.Float:
-			_n += _f.Float()
-			f.value = _n
-			return nil
-		}
-	case starlark.Float:
-		switch _n := n.value.(type) {
-		// float + int
-		case starlark.Int:
-			_f += _n.Float()
-			f.value = _f
-			return nil
-		// float + float
-		case starlark.Float:
-			_f += _n
-			f.value = _f
-			return nil
-		}
-	}
-
-	return fmt.Errorf("error with addition: types are not int, float combos")
-}
-
-func (f *floatOrInt) String() string {
-	return f.value.String()
-}
 
 // Iterator implementation for countObject.
 type countIter struct {
@@ -73,11 +27,12 @@ func (c *countIter) Next(p *starlark.Value) bool {
 		return false
 	}
 
-	*p = c.co.cnt.value
+	*p = c.co.cnt
 
-	if e := c.co.cnt.add(c.co.step); e != nil {
-		return false
-	}
+	// Numeric types for count and step should be guaranteed in countObject
+	// creation in count_ function.
+	count, step := c.co.cnt, c.co.step
+	c.co.cnt, _ = starlark.Binary(syntax.PLUS, count, step)
 
 	return true
 }
@@ -86,25 +41,24 @@ func (c *countIter) Done() {}
 
 // countObject implementation as a starlark.Value.
 type countObject struct {
-	cnt, step floatOrInt
+	cnt, step starlark.Value
 	frozen    bool
 	id        uint32
 }
 
-func newCountObject(start, step floatOrInt) *countObject {
+func newCountObject(start, step starlark.Value) *countObject {
 	return &countObject{cnt: start, step: step, id: uuid.New().ID()}
 }
 
 func (co countObject) String() string {
 	// As with the cpython implementation, we don't display
 	// step when it is an integer equal to 1 (default step value).
-	step, ok := co.step.value.(starlark.Int)
+	step, ok := co.step.(starlark.Int)
 	if ok {
 		if x, ok := step.Int64(); ok && x == 1 {
 			return fmt.Sprintf("count(%v)", co.cnt.String())
 		}
 	}
-
 	return fmt.Sprintf("count(%v, %v)", co.cnt.String(), co.step.String())
 }
 
@@ -123,10 +77,6 @@ func (co *countObject) Truth() starlark.Bool {
 }
 
 func (co *countObject) Hash() (uint32, error) {
-	// Cpython's count object inherits tp_hash from object,
-	// where object's hash is calculated by:
-	// 	id() >> 4
-	// Here, a UUID.ID() should suffice.
 	return co.id, nil
 }
 
@@ -143,25 +93,33 @@ func count_(
 	var (
 		defaultStart = starlark.MakeInt(0)
 		defaultStep  = starlark.MakeInt(1)
-		start        floatOrInt
-		step         floatOrInt
+		start        starlark.Value
+		step         starlark.Value
 	)
 
 	if err := starlark.UnpackPositionalArgs(
 		"count", args, kwargs, 0, &start, &step,
 	); err != nil {
-		return nil, fmt.Errorf(
-			"Got %v but expected no args, or one or two valid numbers",
-			args.String(),
-		)
+		return nil, err
 	}
 
-	// Check if start or step require default values.
-	if start.value == nil {
-		start.value = defaultStart
+	if start == nil {
+		start = defaultStart
 	}
-	if step.value == nil {
-		step.value = defaultStep
+	if step == nil {
+		step = defaultStep
+	}
+
+	// Assert that count and step are numeric starlark Values.
+	switch start.(type) {
+	case starlark.Float, starlark.Int:
+	default:
+		return nil, fmt.Errorf("a number is required")
+	}
+	switch step.(type) {
+	case starlark.Float, starlark.Int:
+	default:
+		return nil, fmt.Errorf("a number is required")
 	}
 
 	return newCountObject(start, step), nil
